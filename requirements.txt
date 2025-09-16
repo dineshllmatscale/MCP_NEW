@@ -15,4 +15,4 @@ langchain_groq
 langchain_core
 plotly
 anthropic
-google.cloud
+google
