@@ -3,8 +3,8 @@
 from fastmcp import FastMCP
 
 from google.cloud import bigquery
-# import os
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\MCP_NEW\service_account.json"
+import os
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\MCP_NEW\service_account.json"
 
 # === Create an MCP server ===
 mcp = FastMCP("CustomerProductSalesMCP")
@@ -313,22 +313,46 @@ Execute a SQL query on the BigQuery `servicenow_users` table containing user pro
 
 **Schema:** `genai-poc-424806.vapi_ai_demo.servicenow_users`
 - username (STRING)
-- password (STRING)
-- DL_id (STRING, driver's license ID)
+
 - Phone_No (STRING)
 - Address (STRING)
--emp_id(STRING)
+- emp_id (STRING)
+
 
 Use this tool to:
-- Retrieve user credentials and contact details
+- Retrieve user credentials and contact details, **excluding the password field for security**.
 - Filter users by location, DL_id, or phone number
 - Join with other activity or ticket data by username
 
-**Example:** SELECT * FROM `genai-poc-424806.vapi_ai_demo.servicenow_users` WHERE Address LIKE '%San Jose%'
+**Example:** SELECT username, Phone_No, Address, emp_id, Password_Creation_Time, Password_Last_Modified FROM `genai-poc-424806.vapi_ai_demo.servicenow_users` WHERE Address LIKE '%San Jose%'
 """)
 def tool_Users(sql: str) -> dict:
     try:
-        rows = run_bq(sql)
+        # Define the safe columns to be retrieved
+        safe_columns = "username, Phone_No, Address, emp_id, Password_Creation_Time, Password_Last_Modified"
+        
+        # Check if the query contains a SELECT clause
+        if "SELECT " in sql.upper():
+            # Find the part of the query after the SELECT keyword
+            select_part = sql.upper().split("SELECT ")[1]
+            # Check if the user is attempting to select all columns or the password
+            if "*" in select_part or "password" in select_part.upper():
+                # Replace the entire SELECT clause with the safe columns
+                from_clause_index = sql.upper().find(" FROM ")
+                if from_clause_index != -1:
+                    # Construct a new, safe query
+                    safe_sql = f"SELECT {safe_columns} {sql[from_clause_index:]}"
+                else:
+                    # Fallback if no FROM clause is found
+                    safe_sql = f"SELECT {safe_columns} FROM `genai-poc-424806.vapi_ai_demo.servicenow_users`"
+            else:
+                # If the query is already safe, use it as is
+                safe_sql = sql
+        else:
+            # If no SELECT clause is present, assume a full select of safe columns
+            safe_sql = f"SELECT {safe_columns} FROM `genai-poc-424806.vapi_ai_demo.servicenow_users`"
+
+        rows = run_bq(safe_sql)
         return {"table": "servicenow_users", "row_count": len(rows), "rows": rows}
     except Exception as e:
         return {"error": str(e)}
@@ -344,6 +368,8 @@ Execute a SQL query on the BigQuery `servicenow_ticket_details` table containing
 - user_id (STRING) — refers to `username` in the servicenow_users table
 - issues (STRING)
 - status (STRING)
+-criticality(STRING)
+-emp_id(STRING)
 
 Use this tool to:
 - Retrieve support or issue tickets
