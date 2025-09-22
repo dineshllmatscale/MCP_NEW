@@ -3,7 +3,7 @@
 from fastmcp import FastMCP
 
 from google.cloud import bigquery
-import os
+# import os
 # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\MCP_NEW\service_account.json"
 
 # === Create an MCP server ===
@@ -309,9 +309,9 @@ def tool_soc_alerts(sql: str) -> dict:
 # 10).User Details 
 # -----------------------------------------------------------------------------
 @mcp.tool(description="""
-Execute a SQL query on the BigQuery `oeis_users` table containing user profile and license information.
+Execute a SQL query on the BigQuery `servicenow_users` table containing user profile and license information.
 
-**Schema:** `genai-poc-424806.vapi_ai_demo.oeis_users`
+**Schema:** `genai-poc-424806.vapi_ai_demo.servicenow_users`
 - username (STRING)
 - password (STRING)
 - DL_id (STRING, driver's license ID)
@@ -324,12 +324,12 @@ Use this tool to:
 - Filter users by location, DL_id, or phone number
 - Join with other activity or ticket data by username
 
-**Example:** SELECT * FROM `genai-poc-424806.vapi_ai_demo.oeis_users` WHERE Address LIKE '%San Jose%'
+**Example:** SELECT * FROM `genai-poc-424806.vapi_ai_demo.servicenow_users` WHERE Address LIKE '%San Jose%'
 """)
 def tool_Users(sql: str) -> dict:
     try:
         rows = run_bq(sql)
-        return {"table": "oeis_users", "row_count": len(rows), "rows": rows}
+        return {"table": "servicenow_users", "row_count": len(rows), "rows": rows}
     except Exception as e:
         return {"error": str(e)}
 
@@ -337,24 +337,25 @@ def tool_Users(sql: str) -> dict:
 # 11).Ticket details
 # -----------------------------------------------------------------------------
 @mcp.tool(description="""
-Execute a SQL query on the BigQuery `ticket_details` table containing ticket and issue tracking information.
+Execute a SQL query on the BigQuery `servicenow_ticket_details` table containing ticket and issue tracking information.
 
-**Schema:** `genai-poc-424806.vapi_ai_demo.ticket_details`
+**Schema:** `genai-poc-424806.vapi_ai_demo.servicenow_ticket_details`
 - ticket_id (STRING)
-- user_id (STRING) — refers to `username` in the users table
+- user_id (STRING) — refers to `username` in the servicenow_users table
 - issues (STRING)
+- status (STRING)
 
 Use this tool to:
 - Retrieve support or issue tickets
-- Filter by user, ticket ID, or keyword in issues
+- Filter by user, ticket ID, or keyword in issues, status
 - Join with user data to get profile details
 
-**Example:** SELECT * FROM `genai-poc-424806.vapi_ai_demo.ticket_details` WHERE issues LIKE '%login%'
+**Example:** SELECT * FROM `genai-poc-424806.vapi_ai_demo.servicenow_ticket_details` WHERE issues LIKE '%login%'
 """)
 def tool_TicketDetails(sql: str) -> dict:
     try:
         rows = run_bq(sql)
-        return {"table": "ticket_details", "row_count": len(rows), "rows": rows}
+        return {"table": "servicenow_ticket_details", "row_count": len(rows), "rows": rows}
     except Exception as e:
         return {"error": str(e)}
 
