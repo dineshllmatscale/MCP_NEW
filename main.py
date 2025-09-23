@@ -370,6 +370,7 @@ Execute a SQL query on the BigQuery `servicenow_ticket_details` table containing
 - status (STRING)
 -criticality(STRING)
 -emp_id(STRING)
+-assigned_date(DATE)
 
 Use this tool to:
 - Retrieve support or issue tickets
