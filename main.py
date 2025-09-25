@@ -4,7 +4,7 @@ from fastmcp import FastMCP
 
 from google.cloud import bigquery
 import os
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\MCP_NEW\service_account.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\MCP_NEW\service_account.json"
 
 # === Create an MCP server ===
 mcp = FastMCP("CustomerProductSalesMCP")
@@ -845,7 +845,111 @@ def Bigquery_SAC_CEQA_Analytics(sql: str) -> dict:
             "query_success": False,
             "error": str(e)
         }
-            
+
+# 19) BigQuery_MSME 2023-24
+# -----------------------------------------------------------------------------
+@mcp.tool(description="""
+Execute a SQL query on the BigQuery `MSME_2023-24` table containing data on consumer numbers, tariff categories, and consumption details.
+
+**Schema:** `genai-poc-424806.MSME.MSME_2023-24`
+- `Masked consumer number` (STRING)
+- `Month/ Year` (STRING)
+- `Tariff category` (STRING)
+- `Connection Type` (STRING)
+- `Connection status` (STRING)
+- `District` (STRING)
+- `Taluk` (STRING)
+- `Sanctioned demand (KVA)` (FLOAT64)
+- `Nature of Industry` (STRING)
+- `Total Monthly consumption` (FLOAT64)
+- `Monthly/ Bi-monthly tariff amount to be paid (in INR)` (INT64)
+- `Due date for payment of bills` (DATE)
+- `Date of payment of bill` (DATE)
+
+Use this tool to:
+- Retrieve consumer details for the MSME sector.
+- Analyze electricity consumption and tariff data.
+- Filter records by district, tariff category, or connection status.
+
+**Example:** SELECT * FROM `genai-poc-424806.MSME.MSME_2023-24` WHERE District = 'Chennai' AND `Tariff category` = 'HT-I'
+""")
+def BigQuery_MSME1(sql: str) -> dict:
+    try:
+        rows = run_bq(sql)
+        return {"table": "MSME_2023-24", "row_count": len(rows), "rows": rows}
+    except Exception as e:
+        return {"error": str(e)} 
+    
+# 20) BigQuery_MSME 2024-25
+# -----------------------------------------------------------------------------
+@mcp.tool(description="""
+Execute a SQL query on the BigQuery `MSME_2024-25` table containing data on consumer numbers, tariff categories, and consumption details.
+
+**Schema:** `genai-poc-424806.MSME.MSME_2024-25`
+- `Masked consumer number` (STRING)
+- `Month/ Year` (STRING)
+- `Tariff category` (STRING)
+- `Connection Type` (STRING)
+- `Connection status` (STRING)
+- `District` (STRING)
+- `Taluk` (STRING)
+- `Sanctioned demand (KVA)` (FLOAT64)
+- `Nature of Industry` (STRING)
+- `Total Monthly consumption` (FLOAT64)
+- `Monthly/ Bi-monthly tariff amount to be paid (in INR)` (INT64)
+- `Due date for payment of bills` (DATE)
+- `Date of payment of bill` (DATE)
+
+Use this tool to:
+- Retrieve consumer details for the MSME sector.
+- Analyze electricity consumption and tariff data.
+- Filter records by district, tariff category, or connection status.
+
+**Example:** SELECT * FROM `genai-poc-424806.MSME.MSME_2024-25` WHERE District = 'Chennai' AND `Tariff category` = 'HT-I'
+""")
+def BigQuery_MSME2(sql: str) -> dict:
+    try:
+        rows = run_bq(sql)
+        return {"table": "MSME_2024-25", "row_count": len(rows), "rows": rows}
+    except Exception as e:
+        return {"error": str(e)} 
+    
+# 21) BigQuery_MSME final
+# -----------------------------------------------------------------------------
+@mcp.tool(description="""
+Execute a SQL query on the BigQuery `final_processed` table containing final processed data for the MSME sector.
+
+**Schema:** `genai-poc-424806.MSME.final_processed`
+- `Consumer Number` (STRING)
+- `Month` (INTEGER)
+- `Year` (INTEGER)
+- `Tariff Category` (STRING)
+- `Connection Type` (STRING)
+- `CTorNon-CT` (STRING)
+- `Connection status` (STRING)
+- `District` (STRING)
+- `Town or Village` (STRING)
+- `Connected Load` (FLOAT)
+- `Sanctioned demand` (FLOAT)
+- `Nature of Industry` (STRING)
+- `Total Monthly consumption` (FLOAT)
+- `Monthly or Bi-monthly tarrif Amount to be Paid` (INTEGER)
+- `Due date for payment of bills` (DATE)
+- `Date of payment of bill` (DATE)
+
+Use this tool to:
+- Retrieve final processed consumer details for the MSME sector.
+- Analyze electricity consumption and tariff data with cleaned and standardized date formats.
+- Filter records by district, tariff category, or connection status.
+
+**Example:** SELECT * FROM `genai-poc-424806.MSME.final_processed` WHERE `Month` >= 4 LIMIT 10000
+""")
+def BigQuery_MSMEfinal(sql: str) -> dict:
+    try:
+        rows = run_bq(sql)
+        return {"table": "final_processed", "row_count": len(rows), "rows": rows}
+    except Exception as e:
+        return {"error": str(e)} 
 
 # === Entrypoint ===
 if __name__ == "__main__":
