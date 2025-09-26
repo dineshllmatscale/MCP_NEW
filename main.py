@@ -4,6 +4,7 @@ from fastmcp import FastMCP
 
 from google.cloud import bigquery
 import os
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\MCP_NEW\service_account.json"
 
 # === Create an MCP server ===
 mcp = FastMCP("CustomerProductSalesMCP")
@@ -845,110 +846,196 @@ def Bigquery_SAC_CEQA_Analytics(sql: str) -> dict:
             "error": str(e)
         }
 
-# 19) BigQuery_MSME 2023-24
+# 19) BigQuery_MSME 2023-25 (Create/Update Cleaned Data)
 # -----------------------------------------------------------------------------
 @mcp.tool(description="""
-Execute a SQL query on the BigQuery `MSME_2023-24` table containing data on consumer numbers, tariff categories, and consumption details.
+Execute SQL commands to create or replace the main processed MSME data table (`MSME_2023-25_Cleaned`) **using the MSME_2023-25 dataset as the source**. 
+This tool is specifically designed for cleaning, preprocessing, and saving the results of the MSME dataset, maintaining the new standardized schema structure.
 
-**Schema:** `genai-poc-424806.MSME.MSME_2023-24`
-- `Masked consumer number` (STRING)
-- `Month/ Year` (STRING)
-- `Tariff category` (STRING)
-- `Connection Type` (STRING)
-- `Connection status` (STRING)
-- `District` (STRING)
-- `Taluk` (STRING)
-- `Sanctioned demand (KVA)` (FLOAT64)
-- `Nature of Industry` (STRING)
-- `Total Monthly consumption` (FLOAT64)
-- `Monthly/ Bi-monthly tariff amount to be paid (in INR)` (INT64)
-- `Due date for payment of bills` (DATE)
-- `Date of payment of bill` (DATE)
+**Behavior:**
+- The destination table will be named `MSME_2023-25_Cleaned`.
+- **For analysis queries (like SUM, CORR, AVG), the tool should query the CLEANED table (`MSME_2023-25_Cleaned`) using the standardized snake_case column names.**
+- Supports CREATE, INSERT, UPDATE, DELETE, and SELECT operations.
+
+**Schema of MSME_2023-25_Cleaned (The Final Cleaned Schema for Analysis):**
+- masked_consumer_number (STRING)
+- month_year (STRING)
+- tariff_category (STRING)
+- connection_type (STRING)
+- connection_status (STRING)
+- district (STRING)
+- taluk (STRING)
+- sanctioned_demand (INT64) 
+- nature_of_industry (STRING)
+- total_monthly_consumption (FLOAT64) 
+- monthly_or_bimonthly_tariff_amount (INT64) 
+- due_date_for_payment_of_bills (DATE)
+- date_of_payment_of_bill (DATE)
+- file (STRING)
+- label (STRING)
+- ratio (FLOAT64)
+
+**Preprocessing applied (Example):**
+- Remove duplicates.
+- **Casts STRING columns to correct numeric types (INT64 for demand, FLOAT64 for consumption).**
+- Handle NULL values (imputation with 'Unknown', 0, or '2001-01-01') using COALESCE and SAFE_ functions.
+- **Calculates 'ratio' (Consumption/Demand) and adds a placeholder 'label'.**
+- Filter invalid consumption/demand values.
 
 Use this tool to:
 - Retrieve consumer details for the MSME sector.
 - Analyze electricity consumption and tariff data.
 - Filter records by district, tariff category, or connection status.
 
-**Example:** SELECT * FROM `genai-poc-424806.MSME.MSME_2023-24` WHERE District = 'Chennai' AND `Tariff category` = 'HT-I'
+**Example (create/replace with cleaned data):**
+CREATE OR REPLACE TABLE `genai-poc-424806.MSME.MSME_2023-25_Cleaned` AS 
+SELECT DISTINCT 
+    -- Use the existing snake_case name
+    COALESCE(masked_consumer_number, 'Unknown') AS masked_consumer_number, 
+    COALESCE(month_year, '00-0000') AS month_year, 
+    COALESCE(tariff_category, 'Unknown') AS tariff_category, 
+    COALESCE(connection_type, 'Unknown') AS connection_type, 
+    COALESCE(connection_status, 'Unknown') AS connection_status, 
+    COALESCE(district, 'Unknown') AS district, 
+    COALESCE(taluk, 'Unknown') AS taluk, 
+    
+    -- Sanctioned Demand is INT64 in source, so we COALESCE the INT64 field
+    COALESCE(sanctioned_demand, 0) AS sanctioned_demand, 
+    
+    COALESCE(nature_of_industry, 'Unknown') AS nature_of_industry, 
+    
+    -- Total Monthly Consumption is FLOAT in source, so we COALESCE the FLOAT field
+    COALESCE(total_monthly_consumption, 0.0) AS total_monthly_consumption, 
+    
+    -- Monthly Tariff Amount is INTEGER in source
+    COALESCE(monthly_or_bimonthly_tariff_amount, 0) AS monthly_or_bimonthly_tariff_amount, 
+    
+    -- Date fields are DATE type, but COALESCE handles nulls
+    COALESCE(due_date_for_payment_of_bills, DATE '2001-01-01') AS due_date_for_payment_of_bills, 
+    COALESCE(date_of_payment_of_bill, DATE '2001-01-01') AS date_of_payment_of_bill, 
+    
+    COALESCE(file, 'Unknown') AS file, 
+    COALESCE(label, 'Placeholder') AS label, 
+    
+    -- Ratio calculation uses the cleaned numeric fields directly
+    SAFE_DIVIDE(
+        COALESCE(total_monthly_consumption, 0.0), 
+        COALESCE(SAFE_CAST(sanctioned_demand AS FLOAT64), 1.0)
+    ) AS ratio 
+FROM `genai-poc-424806.MSME.MSME_2023-25` 
+-- Filter invalid demand values
+WHERE COALESCE(sanctioned_demand, 0) > 0;
 """)
 def BigQuery_MSME1(sql: str) -> dict:
     try:
         rows = run_bq(sql)
-        return {"table": "MSME_2023-24", "row_count": len(rows), "rows": rows}
+        # The tool now targets and returns data from the MSME_2023-25_Cleaned table.
+        return {"table": "MSME_2023-25_Cleaned", "row_count": len(rows) if rows else 0, "rows": rows}
     except Exception as e:
-        return {"error": str(e)} 
+        return {"error": str(e)}
     
-# 20) BigQuery_MSME 2024-25
-# -----------------------------------------------------------------------------
-@mcp.tool(description="""
-Execute a SQL query on the BigQuery `MSME_2024-25` table containing data on consumer numbers, tariff categories, and consumption details.
+# # 20) BigQuery_MSME 2024-25
+# # -----------------------------------------------------------------------------
+# @mcp.tool(description="""
+# Execute a SQL query on the BigQuery `MSME_2024-25` table containing data on consumer numbers, tariff categories, and consumption details.
 
-**Schema:** `genai-poc-424806.MSME.MSME_2024-25`
-- `Masked consumer number` (STRING)
-- `Month/ Year` (STRING)
-- `Tariff category` (STRING)
-- `Connection Type` (STRING)
-- `Connection status` (STRING)
-- `District` (STRING)
-- `Taluk` (STRING)
-- `Sanctioned demand (KVA)` (FLOAT64)
-- `Nature of Industry` (STRING)
-- `Total Monthly consumption` (FLOAT64)
-- `Monthly/ Bi-monthly tariff amount to be paid (in INR)` (INT64)
-- `Due date for payment of bills` (DATE)
-- `Date of payment of bill` (DATE)
+# **Schema:** `genai-poc-424806.MSME.MSME_2024-25`
+# - `Masked consumer number` (STRING)
+# - `Month_Year` (STRING)
+# - `Tariff category` (STRING)
+# - `Connection Type` (STRING)
+# - `Connection status` (STRING)
+# - `District` (STRING)
+# - `Taluk` (STRING)
+# - `Sanctioned demand` (FLOAT64)
+# - `Nature of Industry` (STRING)
+# - `Total Monthly consumption` (FLOAT64)
+# - `Monthly/ Bi-monthly tariff amount to be paid (in INR)` (INT64)
+# - `Due date for payment of bills` (DATE)
+# - `Date of payment of bill` (DATE)
 
-Use this tool to:
-- Retrieve consumer details for the MSME sector.
-- Analyze electricity consumption and tariff data.
-- Filter records by district, tariff category, or connection status.
+# Use this tool to:
+# - Retrieve consumer details for the MSME sector.
+# - Analyze electricity consumption and tariff data.
+# - Filter records by district, tariff category, or connection status.
 
-**Example:** SELECT * FROM `genai-poc-424806.MSME.MSME_2024-25` WHERE District = 'Chennai' AND `Tariff category` = 'HT-I'
-""")
-def BigQuery_MSME2(sql: str) -> dict:
-    try:
-        rows = run_bq(sql)
-        return {"table": "MSME_2024-25", "row_count": len(rows), "rows": rows}
-    except Exception as e:
-        return {"error": str(e)} 
+# **Example:** SELECT * FROM `genai-poc-424806.MSME.MSME_2024-25` WHERE District = 'Chennai' AND `Tariff category` = 'HT-I'
+# """)
+# def BigQuery_MSME2(sql: str) -> dict:
+#     try:
+#         rows = run_bq(sql)
+#         return {"table": "MSME_2024-25", "row_count": len(rows), "rows": rows}
+#     except Exception as e:
+#         return {"error": str(e)} 
     
-# 21) BigQuery_MSME final
-# -----------------------------------------------------------------------------
-@mcp.tool(description="""
-Execute a SQL query on the BigQuery `final_processed` table containing final processed data for the MSME sector.
+# # 21) BigQuery_MSME final (Create/Update Cleaned Data)
+# # -----------------------------------------------------------------------------
+# @mcp.tool(description="""
+# Execute SQL commands to create or replace the main processed MSME data table (`MSME_Cleaned`). 
+# This tool is specifically designed for cleaning, preprocessing, and saving the results of the MSME dataset.
 
-**Schema:** `genai-poc-424806.MSME.final_processed`
-- `Consumer Number` (STRING)
-- `Month` (INTEGER)
-- `Year` (INTEGER)
-- `Tariff Category` (STRING)
-- `Connection Type` (STRING)
-- `CTorNon-CT` (STRING)
-- `Connection status` (STRING)
-- `District` (STRING)
-- `Town or Village` (STRING)
-- `Connected Load` (FLOAT)
-- `Sanctioned demand` (FLOAT)
-- `Nature of Industry` (STRING)
-- `Total Monthly consumption` (FLOAT)
-- `Monthly or Bi-monthly tarrif Amount to be Paid` (INTEGER)
-- `Due date for payment of bills` (DATE)
-- `Date of payment of bill` (DATE)
+# **Behavior:**
+# - If the user requests preprocessing and updating:
+#   - **Create the table `MSME_Cleaned` if it does not exist.**
+#   - **If it exists, replace all rows with the newly preprocessed data.**
+# - Supports CREATE, INSERT, UPDATE, DELETE operations.
+# - Ensures the `MSME_Cleaned` table always contains the latest cleaned version of the MSME data.
 
-Use this tool to:
-- Retrieve final processed consumer details for the MSME sector.
-- Analyze electricity consumption and tariff data with cleaned and standardized date formats.
-- Filter records by district, tariff category, or connection status.
+# **Schema of MSME_Cleaned (after preprocessing):**
+# - Consumer_Number (STRING)
+# - Month (INT64)
+# - Year (INT64)
+# - Tariff_Category (STRING)
+# - Connection_Type (STRING)
+# - CT_or_NonCT (STRING)
+# - Connection_status (STRING)
+# - District (STRING)
+# - Town_or_Village (STRING)
+# - Connected_Load (FLOAT64)
+# - Sanctioned_demand (FLOAT64)
+# - Nature_of_Industry (STRING)
+# - Total_Monthly_consumption (FLOAT64)
+# - Monthly_Tariff_Amount (INT64)
+# - Bill_Due_Date (DATE)
+# - Bill_Payment_Date (DATE)
 
-**Example:** SELECT * FROM `genai-poc-424806.MSME.final_processed` WHERE `Month` >= 4 LIMIT 10000
-""")
-def BigQuery_MSMEfinal(sql: str) -> dict:
-    try:
-        rows = run_bq(sql)
-        return {"table": "final_processed", "row_count": len(rows), "rows": rows}
-    except Exception as e:
-        return {"error": str(e)} 
+# **Preprocessing applied (Example):**
+# - Remove duplicates.
+# - **Handle NULL values (imputation with 'Unknown' for strings, 0 for numbers, and '1970-01-01' for dates) using COALESCE and SAFE_ functions.**
+# - Standardize column names (e.g., replace spaces, use snake_case).
+# - Standardize date formats to DATE type and ensure proper numeric types.
+# - Filter invalid connected load values.
+
+# **Example (create/replace with cleaned data):**
+# CREATE OR REPLACE TABLE `genai-poc-424806.MSME.MSME_Cleaned` AS
+# SELECT DISTINCT
+#     COALESCE(`Consumer Number`, 'Unknown') AS Consumer_Number,
+#     SAFE_CAST(COALESCE(CAST(Month AS STRING), '0') AS INT64) AS Month,
+#     SAFE_CAST(COALESCE(CAST(Year AS STRING), '0') AS INT64) AS Year,
+#     COALESCE(`Tariff Category`, 'Unknown') AS Tariff_Category,
+#     COALESCE(`Connection Type`, 'Unknown') AS Connection_Type,
+#     COALESCE(`CTorNon-CT`, 'Unknown') AS CT_or_NonCT,
+#     COALESCE(`Connection status`, 'Unknown') AS Connection_status,
+#     COALESCE(District, 'Unknown') AS District,
+#     COALESCE(`Town or Village`, 'Unknown') AS Town_or_Village,
+#     COALESCE(SAFE_CAST(`Connected Load` AS FLOAT64), 0.0) AS Connected_Load,
+#     COALESCE(SAFE_CAST(`Sanctioned demand` AS FLOAT64), 0.0) AS Sanctioned_demand,
+#     COALESCE(`Nature of Industry`, 'Unknown') AS Nature_of_Industry,
+#     COALESCE(SAFE_CAST(`Total Monthly consumption` AS FLOAT64), 0.0) AS Total_Monthly_consumption,
+#     COALESCE(SAFE_CAST(`Monthly or Bi-monthly tarrif Amount to be Paid` AS INT64), 0) AS Monthly_Tariff_Amount,
+#     COALESCE(SAFE.PARSE_DATE('%d-%b-%Y', `Due date for payment of bills`), DATE '1970-01-01') AS Bill_Due_Date,
+#     COALESCE(SAFE.PARSE_DATE('%d-%b-%Y', `Date of payment of bill`), DATE '1970-01-01') AS Bill_Payment_Date
+# FROM `genai-poc-424806.MSME.final_processed`
+# WHERE COALESCE(SAFE_CAST(`Connected Load` AS FLOAT64), 0.0) > 0
+# """)
+# def BigQuery_MSMEfinal(sql: str) -> dict:
+#     try:
+#         rows = run_bq(sql)
+#         # Note: The output table is now named 'MSME_Cleaned' in the description
+#         # but the function itself remains BigQuery_MSMEfinal.
+#         return {"table": "MSME_Cleaned", "row_count": len(rows) if rows else 0, "rows": rows}
+#     except Exception as e:
+#         return {"error": str(e)}
 
 # === Entrypoint ===
 if __name__ == "__main__":
